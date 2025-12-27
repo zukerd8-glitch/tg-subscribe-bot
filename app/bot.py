@@ -1,5 +1,5 @@
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import ParseMode
+from aiogram.enums.parse_mode import ParseMode
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
