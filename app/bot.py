@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 import asyncio
 
 # ===== Настройки =====
-BOT_TOKEN = "8265256708:AAHm_ECzLg3_xJIn_8sqjIqUN6TgBmSFycE"  # вставь свой токен
+BOT_TOKEN = "8265256708:AAHm_ECzLg3_xJIn_8sqjIqUN6TgBmSFycE"  # вставь сюда свой токен
 ADMINS = [8364140774]  # твой Telegram ID
 
 bot = Bot(token=BOT_TOKEN)
@@ -15,7 +15,7 @@ dp = Dispatcher(storage=MemoryStorage())
 # ===== Хранилище данных =====
 channels = []  # список каналов для проверки подписки
 files = []     # список file_id для выдачи
-users = set()  # set для хранения всех пользователей, которые писали боту
+users = set()  # set для хранения всех пользователей
 
 # ===== FSM для добавления файлов =====
 class AddFileState(StatesGroup):
@@ -71,6 +71,49 @@ async def add_file_receive(message: types.Message, state: FSMContext):
 @dp.message(F.text.startswith("/broadcast"))
 async def broadcast(message: types.Message):
     if message.from_user.id not in ADMINS:
+        return
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer("Используй: /broadcast текст_сообщения")
+        return
+    text = args[1]
+    count = 0
+    for user_id in users:
+        try:
+            await bot.send_message(user_id, text, parse_mode=ParseMode.HTML)
+            count += 1
+        except Exception as e:
+            print(f"Не удалось отправить пользователю {user_id}: {e}")
+    await message.answer(f"✅ Сообщение отправлено {count} пользователям")
+
+# ===== Обработка /start =====
+@dp.message(F.text.startswith("/start"))
+async def start_command(message: types.Message):
+    users.add(message.from_user.id)  # добавляем пользователя в базу
+    if not channels or not files:
+        await message.answer("Бот ещё не настроен админом")
+        return
+
+    # проверка подписки на все каналы
+    for channel in channels:
+        try:
+            member = await bot.get_chat_member(chat_id=channel, user_id=message.from_user.id)
+            if member.status not in ["left", "kicked"]:
+                # подписан, отправляем первый файл
+                await message.answer_document(files[0])
+                return
+        except Exception as e:
+            print(f"Ошибка проверки канала {channel}: {e}")
+
+    await message.answer("❗ Чтобы получить файл, подпишись на все каналы.")
+
+# ===== Запуск бота =====
+async def main():
+    print("Бот запущен")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
         return
     args = message.text.split(maxsplit=1)
     if len(args) < 2:
